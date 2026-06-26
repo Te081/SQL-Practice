@@ -132,17 +132,6 @@ function getRowsModified() {
 
 function initTables() {
   exec(`
-    CREATE TABLE IF NOT EXISTS api_config (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      api_key TEXT NOT NULL DEFAULT '',
-      base_url TEXT NOT NULL DEFAULT 'https://api.deepseek.com',
-      model TEXT NOT NULL DEFAULT 'deepseek-chat',
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    INSERT OR IGNORE INTO api_config (id, api_key, base_url, model)
-    VALUES (1, '', 'https://api.deepseek.com', 'deepseek-chat');
-
     CREATE TABLE IF NOT EXISTS exercises (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL DEFAULT '',

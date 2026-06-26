@@ -1,22 +1,38 @@
 /**
  * 存储服务 — SQLite CRUD 操作封装 (sql.js 适配版)
+ * API Key 配置独立存储于 JSON 文件，练习题/答题记录存储于 SQLite
  */
+const fs = require('fs');
+const path = require('path');
 const { queryAll, queryOne, run, lastInsertRowid } = require('../db/init');
 
-// ==================== API 配置 ====================
+// ==================== API 配置文件路径 ====================
+
+const CONFIG_PATH = path.join(__dirname, '..', 'data', 'api-config.json');
+
+// ==================== API 配置（JSON 文件存储） ====================
 
 function getConfig() {
-  return queryOne('SELECT * FROM api_config WHERE id = 1');
+  try {
+    if (!fs.existsSync(CONFIG_PATH)) {
+      return { api_key: '', base_url: 'https://api.deepseek.com', model: 'deepseek-chat' };
+    }
+    const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('[storage] 读取 API 配置失败:', err.message);
+    return { api_key: '', base_url: 'https://api.deepseek.com', model: 'deepseek-chat' };
+  }
 }
 
 function saveConfig({ api_key, base_url, model }) {
-  run(
-    `UPDATE api_config
-     SET api_key = ?, base_url = ?, model = ?, updated_at = datetime('now')
-     WHERE id = 1`,
-    [api_key, base_url, model]
-  );
-  return { changes: 1 };
+  const dir = path.dirname(CONFIG_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const config = { api_key, base_url: base_url || 'https://api.deepseek.com', model: model || 'deepseek-chat' };
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  return config;
 }
 
 // ==================== 练习题 ====================
@@ -116,6 +132,7 @@ function safeJsonParse(str, fallback) {
 }
 
 module.exports = {
+  CONFIG_PATH,
   getConfig,
   saveConfig,
   saveExercise,

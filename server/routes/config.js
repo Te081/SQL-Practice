@@ -7,7 +7,7 @@ const deepseek = require('../services/deepseek');
 
 const router = Router();
 
-const { DB_PATH } = require('../db/init');
+const { CONFIG_PATH } = storage;
 
 // GET /api/config — 获取当前配置（api_key 脱敏显示）
 router.get('/', (req, res) => {
@@ -19,7 +19,7 @@ router.get('/', (req, res) => {
       base_url: 'https://api.deepseek.com',
       model: 'deepseek-chat',
       has_key: false,
-      storage_path: DB_PATH,
+      storage_path: CONFIG_PATH,
     });
   }
 
@@ -37,7 +37,7 @@ router.get('/', (req, res) => {
     base_url: config.base_url,
     model: config.model,
     has_key: !!rawKey,
-    storage_path: DB_PATH,
+    storage_path: CONFIG_PATH,
   });
 });
 

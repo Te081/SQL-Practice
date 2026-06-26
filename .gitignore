@@ -3,3 +3,5 @@ dist/
 data/
 *.db
 .env
+# API Key 独立配置文件（包含敏感信息，切勿提交）
+server/data/api-config.json
