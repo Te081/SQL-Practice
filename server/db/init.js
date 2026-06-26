@@ -177,10 +177,13 @@ function initTables() {
 
 /**
  * 安全添加列（仅当列不存在时执行 ALTER TABLE）
+ * 使用 PRAGMA table_info + exec() — 避免 sql.js 对 pragma_* 表值函数的不兼容
  */
 function migrateAddColumn(table, column, colDef) {
-  const rows = queryAll(`SELECT COUNT(*) AS cnt FROM pragma_table_info('${table}') WHERE name = '${column}'`);
-  if (rows[0]?.cnt === 0) {
+  const result = getDb().exec(`PRAGMA table_info('${table}')`);
+  if (!result.length) return;
+  const existingCols = result[0].values.map(r => r[1]);
+  if (!existingCols.includes(column)) {
     console.log(`[DB] 迁移: ${table} 添加列 ${column}`);
     exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${colDef}`);
     saveDb();

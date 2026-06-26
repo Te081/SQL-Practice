@@ -119,13 +119,13 @@ const historyStore = useHistoryStore()
 
 const selected = computed(() => historyStore.selectedExercise)
 
-// 历史详情的可视化数据表（优先服务端预解析，降级前端解析）
+// 历史详情的可视化数据表（优先服务端预解析）
+// 仅当至少有一张表包含实际数据行时才展示，避免空表占位
 const displayHistoryTables = computed(() => {
-  if (selected.value?.tables?.length > 0) {
-    return selected.value.tables
-  }
-  // 旧数据无 table_data 时返回空
-  return []
+  const tables = selected.value?.tables
+  if (!tables || tables.length === 0) return []
+  const hasData = tables.some(t => t.rows && t.rows.length > 0)
+  return hasData ? tables : []
 })
 
 onMounted(() => {
