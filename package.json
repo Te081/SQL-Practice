@@ -1,0 +1,15 @@
+{
+  "name": "sql-practice",
+  "version": "1.0.0",
+  "description": "SQL Practice Tool - 交互式 SQL 练习平台，结合 DeepSeek API 生成练习题",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node server/index.js",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "node server/index.js"
+  },
+  "keywords": ["sql", "practice", "deepseek", "vue3", "education"],
+  "license": "MIT"
+}
