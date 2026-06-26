@@ -24,17 +24,44 @@ app.use('/api/practice', practiceRoutes);
 app.use('/api/history', historyRoutes);
 
 // 生产环境：托管前端构建产物
-const clientDist = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(clientDist));
+const fs = require('fs');
+const clientDist = path.resolve(__dirname, '..', 'client', 'dist');
+
+// 检查构建产物是否存在
+if (fs.existsSync(clientDist) && fs.existsSync(path.join(clientDist, 'index.html'))) {
+  console.log(`[Static] 托管前端: ${clientDist}`);
+} else {
+  console.warn(`[Static] ⚠️ 未找到前端构建产物: ${clientDist}`);
+  console.warn(`[Static] 请先运行: cd client && npm run build`);
+}
+
+app.use(express.static(clientDist, { fallthrough: true }));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(clientDist, 'index.html'), (err) => {
-    if (err) next();
-  });
+  const indexPath = path.join(clientDist, 'index.html');
+  if (!fs.existsSync(indexPath)) {
+    return res.status(503).send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding-top:60px;">
+      <h2>⚠️ 前端未构建</h2>
+      <p>请在项目根目录执行:</p>
+      <pre>cd client && npm run build</pre>
+      <p>然后重启服务器。</p>
+      </body></html>
+    `);
+  }
+  res.sendFile(indexPath);
 });
 
 // 错误处理
 app.use(errorHandler);
+
+// 全局未捕获异常处理 — 防止 DeepSeek API 超时等导致进程崩溃
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] 未捕获异常:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] 未处理的 Promise 拒绝:', reason?.message || reason);
+});
 
 // 异步启动：先初始化数据库，再监听端口
 async function start() {

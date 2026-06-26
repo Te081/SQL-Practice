@@ -1,7 +1,4 @@
 @echo off
-setlocal enabledelayedexpansion
-REM Switch to UTF-8 code page (Win10 1903+)
-chcp 65001 >nul 2>&1
 echo ============================================
 echo   SQL Practice - Dependency Setup
 echo ============================================

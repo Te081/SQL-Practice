@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SQL Practice Launcher</title>
+<hta:application
+  border="dialog"
+  innerborder="no"
+  caption="yes"
+  sysmenu="yes"
+  maximizebutton="no"
+  minimizebutton="yes"
+  scroll="no"
+  contextmenu="no"
+  selection="no"
+/>
+
+<style>
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #fff;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 550px;
+    width: 450px;
+  }
+  .panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 32px 36px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    max-width: 380px;
+    width: 90%;
+  }
+  h1 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 6px;
+  }
+  .subtitle {
+    font-size: 0.82rem;
+    color: #6b7280;
+    margin-bottom: 24px;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 12px 0;
+    margin-bottom: 10px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-setup {
+    background: #eef2ff;
+    color: #4f46e5;
+  }
+  .btn-setup:hover { background: #e0e7ff; }
+  .btn-start {
+    background: #6366f1;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+  }
+  .btn-start:hover { background: #4f46e5; }
+  .btn-stop {
+    background: #fef2f2;
+    color: #dc2626;
+  }
+  .btn-stop:hover { background: #fee2e2; }
+  .status {
+    margin-top: 16px;
+    font-size: 0.78rem;
+    color: #9ca3af;
+    min-height: 20px;
+    line-height: 1.5;
+  }
+  .status.ok { color: #16a34a; }
+  .status.err { color: #dc2626; }
+  .divider {
+    font-size: 0.7rem;
+    color: #d1d5db;
+    margin: 8px 0 12px;
+  }
+  .hint {
+    font-size: 0.7rem;
+    color: #d1d5db;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>🐘 SQL Practice</h1>
+  <p class="subtitle">交互式 SQL 练习平台</p>
+
+  <button class="btn btn-setup" onclick="runSetup()">📦 安装依赖</button>
+  <div class="divider">—— 日常使用 ——</div>
+  <button class="btn btn-start" onclick="runStart()">🚀 一键启动</button>
+  <button class="btn btn-stop" onclick="runStop()">🛑 停止服务</button>
+
+  <div id="status" class="status">就绪</div>
+  <div class="hint">首次使用请先点击「安装依赖」</div>
+</div>
+
+<script language="VBScript">
+  Sub RunBat(scriptName)
+    Dim shell, fso, batPath, result
+    Set shell = CreateObject("WScript.Shell")
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    batPath = fso.GetParentFolderName(Replace(document.location.pathname, "/", "\")) & "\" & scriptName
+    
+    If fso.FileExists(batPath) Then
+      result = shell.Run("cmd /c """ & batPath & """", 1, True)
+      If result = 0 Then
+        document.getElementById("status").innerHTML = "[OK] " & scriptName & " completed"
+        document.getElementById("status").className = "status ok"
+      Else
+        document.getElementById("status").innerHTML = "[ERR] " & scriptName & " exit code: " & result
+        document.getElementById("status").className = "status err"
+      End If
+    Else
+      document.getElementById("status").innerHTML = "[ERR] File not found: " & scriptName
+      document.getElementById("status").className = "status err"
+    End If
+  End Sub
+</script>
+
+<script language="JavaScript">
+  window.resizeTo(450, 550);
+  window.moveTo((screen.width - 450) / 2, (screen.height - 550) / 2);
+
+  function runSetup() {
+    document.getElementById('status').innerHTML = 'Installing dependencies...';
+    document.getElementById('status').className = 'status';
+    RunBat('setup.bat');
+  }
+  function runStart() {
+    document.getElementById('status').innerHTML = 'Building and launching server...';
+    document.getElementById('status').className = 'status';
+    RunBat('start.bat');
+  }
+  function runStop() {
+    document.getElementById('status').innerHTML = 'Stopping server...';
+    document.getElementById('status').className = 'status';
+    RunBat('stop.bat');
+  }
+</script>
+
+</body>
+</html>

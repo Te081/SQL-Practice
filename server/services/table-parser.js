@@ -73,4 +73,33 @@ function executeStatements(db, sqlText) {
   }
 }
 
-module.exports = { extractTables };
+/**
+ * 在临时 sql.js 数据库中执行 DDL + DML + 一条查询 SQL，返回结果行
+ * @param {string} ddl
+ * @param {string} dml
+ * @param {string} sql — 查询语句
+ * @returns {Promise<{ columns: string[], rows: Object[] }>}
+ */
+async function executeQuery(ddl, dml, sql) {
+  const SQL = await getSql();
+  const db = new SQL.Database();
+
+  try {
+    executeStatements(db, ddl);
+    executeStatements(db, dml);
+
+    const stmt = db.prepare(sql.trim());
+    const rows = [];
+    while (stmt.step()) {
+      rows.push(stmt.getAsObject());
+    }
+    stmt.free();
+
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    return { columns, rows };
+  } finally {
+    db.close();
+  }
+}
+
+module.exports = { extractTables, executeQuery };

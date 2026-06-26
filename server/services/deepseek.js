@@ -5,10 +5,10 @@ const OpenAI = require('openai');
 const storage = require('./storage');
 
 /**
- * 获取已配置的 OpenAI 客户端实例
+ * 获取已配置的 OpenAI 客户端实例（使用激活的 Key）
  */
-function getClient() {
-  const config = storage.getConfig();
+function getClient(configOverride) {
+  const config = configOverride || storage.getActiveConfig();
   if (!config || !config.api_key) {
     throw new Error('请先在配置页面设置 DeepSeek API Key');
   }
@@ -19,14 +19,30 @@ function getClient() {
 }
 
 /**
+ * 获取当前使用的 model
+ */
+function getActiveModel() {
+  const config = storage.getActiveConfig();
+  return (config && config.model) ? config.model : 'deepseek-chat';
+}
+
+/**
  * 测试 DeepSeek API 连接
+ * @param {object} [configOverride] — 可选，测试指定 Key
  * @returns {Promise<{ ok: boolean, message: string }>}
  */
-async function testConnection() {
+async function testConnection(configOverride) {
   try {
-    const client = getClient();
+    const config = configOverride || storage.getActiveConfig();
+    if (!config || !config.api_key) {
+      return { ok: false, message: '未配置 API Key' };
+    }
+    const client = new OpenAI({
+      apiKey: config.api_key,
+      baseURL: config.base_url || 'https://api.deepseek.com',
+    });
     const response = await client.chat.completions.create({
-      model: storage.getConfig().model || 'deepseek-chat',
+      model: config.model || 'deepseek-chat',
       messages: [{ role: 'user', content: 'Hello, respond with "OK".' }],
       max_tokens: 10,
     });
@@ -39,14 +55,10 @@ async function testConnection() {
 
 /**
  * 调用 DeepSeek 生成一道 SQL 练习题
- * @param {object} options
- * @param {string} [options.difficulty='medium'] — easy / medium / hard
- * @param {string} [options.topic] — 可选主题偏好
- * @returns {Promise<object>} 题目数据
  */
 async function generateExercise({ difficulty = 'medium', topic = '' } = {}) {
   const client = getClient();
-  const model = storage.getConfig().model || 'deepseek-chat';
+  const model = getActiveModel();
 
   const topicHint = topic ? `\n偏好主题: ${topic}` : '';
   const difficultyDesc = { easy: '简单', medium: '中等', hard: '困难' }[difficulty] || '中等';

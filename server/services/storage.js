@@ -10,29 +10,119 @@ const { queryAll, queryOne, run, lastInsertRowid } = require('../db/init');
 
 const CONFIG_PATH = path.join(__dirname, '..', 'data', 'api-config.json');
 
-// ==================== API 配置（JSON 文件存储） ====================
+// ==================== API 配置（JSON 文件 — 多 Key 数组） ====================
 
-function getConfig() {
+/** 读取全部配置项 */
+function readConfigs() {
   try {
-    if (!fs.existsSync(CONFIG_PATH)) {
-      return { api_key: '', base_url: 'https://api.deepseek.com', model: 'deepseek-chat' };
-    }
+    if (!fs.existsSync(CONFIG_PATH)) return [];
     const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     console.error('[storage] 读取 API 配置失败:', err.message);
-    return { api_key: '', base_url: 'https://api.deepseek.com', model: 'deepseek-chat' };
+    return [];
   }
 }
 
-function saveConfig({ api_key, base_url, model }) {
+/** 写入全部配置项 */
+function writeConfigs(configs) {
   const dir = path.dirname(CONFIG_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(configs, null, 2), 'utf-8');
+}
+
+/** 生成唯一 ID */
+function generateId() {
+  return 'key_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+}
+
+/** 脱敏显示 API Key */
+function maskKey(raw) {
+  if (!raw) return '';
+  if (raw.length > 12) return raw.slice(0, 7) + '····' + raw.slice(-5);
+  if (raw.length > 0) return raw.slice(0, 5) + '····';
+  return '';
+}
+
+// ==================== 对外 API ====================
+
+/** 获取全部 Key 列表（脱敏） */
+function listConfigs() {
+  return readConfigs().map(c => ({
+    ...c,
+    masked_key: maskKey(c.api_key),
+    api_key: maskKey(c.api_key), // 前端用脱敏值
+  }));
+}
+
+/** 获取当前激活的 Key（完整，供 deepseek.js 使用） */
+function getActiveConfig() {
+  const configs = readConfigs();
+  const active = configs.find(c => c.is_active);
+  return active || configs[0] || null;
+}
+
+/** 检查是否有任何 Key 已配置 */
+function hasAnyKey() {
+  return readConfigs().some(c => c.api_key && c.api_key.trim());
+}
+
+/** 添加新 Key */
+function addConfig({ name, api_key, base_url, model }) {
+  const configs = readConfigs();
+  const isFirst = configs.length === 0;
+  const entry = {
+    id: generateId(),
+    name: name || '未命名',
+    api_key: api_key.trim(),
+    base_url: base_url || 'https://api.deepseek.com',
+    model: model || 'deepseek-chat',
+    is_active: isFirst ? true : false,
+  };
+  configs.push(entry);
+  writeConfigs(configs);
+  return { ...entry, masked_key: maskKey(entry.api_key), api_key: maskKey(entry.api_key) };
+}
+
+/** 更新指定 Key */
+function updateConfig(id, { name, api_key, base_url, model }) {
+  const configs = readConfigs();
+  const idx = configs.findIndex(c => c.id === id);
+  if (idx === -1) return null;
+  if (name !== undefined) configs[idx].name = name;
+  if (api_key !== undefined && api_key.trim()) configs[idx].api_key = api_key.trim();
+  if (base_url !== undefined) configs[idx].base_url = base_url;
+  if (model !== undefined) configs[idx].model = model;
+  writeConfigs(configs);
+  return { ...configs[idx], masked_key: maskKey(configs[idx].api_key), api_key: maskKey(configs[idx].api_key) };
+}
+
+/** 删除指定 Key */
+function deleteConfig(id) {
+  const configs = readConfigs();
+  const idx = configs.findIndex(c => c.id === id);
+  if (idx === -1) return false;
+  const wasActive = configs[idx].is_active;
+  configs.splice(idx, 1);
+  // 如果删除的是激活项，激活第一个
+  if (wasActive && configs.length > 0) {
+    configs[0].is_active = true;
   }
-  const config = { api_key, base_url: base_url || 'https://api.deepseek.com', model: model || 'deepseek-chat' };
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
-  return config;
+  writeConfigs(configs);
+  return true;
+}
+
+/** 设置激活 Key */
+function setActiveConfig(id) {
+  const configs = readConfigs();
+  let found = false;
+  for (const c of configs) {
+    c.is_active = (c.id === id);
+    if (c.id === id) found = true;
+  }
+  if (found) writeConfigs(configs);
+  return found;
 }
 
 // ==================== 练习题 ====================
@@ -133,8 +223,13 @@ function safeJsonParse(str, fallback) {
 
 module.exports = {
   CONFIG_PATH,
-  getConfig,
-  saveConfig,
+  listConfigs,
+  getActiveConfig,
+  hasAnyKey,
+  addConfig,
+  updateConfig,
+  deleteConfig,
+  setActiveConfig,
   saveExercise,
   getExercise,
   listExercises,

@@ -23,13 +23,22 @@ export const usePracticeStore = defineStore('practice', () => {
     userSql.value = ''
 
     try {
-      const { data } = await axios.post('/api/practice/generate', { difficulty, topic })
+      const { data } = await axios.post('/api/practice/generate', { difficulty, topic }, { timeout: 90000 })
       currentExercise.value = data.exercise
       tableData.value = data.tableData || ''
       tables.value = data.tables || []
       return data.exercise
     } catch (err) {
-      const msg = err.response?.data?.error || err.message
+      let msg = err.response?.data?.error
+      if (!msg) {
+        if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+          msg = '请求超时 — AI 服务响应较慢，请稍后重试'
+        } else if (!err.response) {
+          msg = '无法连接服务器 — 请确认后端已启动（端口 3001）'
+        } else {
+          msg = err.message || '未知错误'
+        }
+      }
       error.value = msg
       throw err
     } finally {

@@ -7,7 +7,7 @@
 
     <!-- 题目生成区 — 始终可见 -->
     <div class="card">
-      <div class="card-title">{{ practiceStore.currentExercise ? '⚙️ 生成新题目' : '✨ 生成练习题' }}</div>
+      <div class="card-title">{{ currentExercise ? '⚙️ 生成新题目' : '✨ 生成练习题' }}</div>
       <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
         <div class="form-group" style="flex:1;min-width:140px;">
           <label class="form-label">难度</label>
@@ -29,26 +29,26 @@
           <button
             class="btn btn-primary"
             @click="handleGenerate"
-            :disabled="practiceStore.generating"
+            :disabled="generating"
           >
-            {{ practiceStore.generating ? '⏳ 生成中...' : '✨ 生成题目' }}
+            {{ generating ? '⏳ 生成中...' : '✨ 生成题目' }}
           </button>
         </div>
       </div>
       <!-- 错误提示 — 高可见性 -->
-      <div v-if="practiceStore.error" class="error-banner">
-        <span>⚠️ {{ practiceStore.error }}</span>
-        <button class="btn btn-sm btn-secondary" @click="practiceStore.error = ''" style="margin-left:auto;">✕</button>
+      <div v-if="error" class="error-banner">
+        <span>⚠️ {{ error }}</span>
+        <button class="btn btn-sm btn-secondary" @click="error = ''" style="margin-left:auto;">✕</button>
       </div>
     </div>
 
     <!-- ==================== 练习内容区 ==================== -->
-    <template v-if="practiceStore.currentExercise">
+    <div v-if="currentExercise" ref="exerciseSection">
       <!-- 题目标题栏 -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span :class="['badge', exerciseBadgeClass]">{{ difficultyLabel }}</span>
-          <span style="font-weight:600;font-size:1.1rem;">{{ practiceStore.currentExercise.title }}</span>
+          <span style="font-weight:600;font-size:1.1rem;">{{ currentExercise.title }}</span>
         </div>
         <button class="btn btn-secondary btn-sm" @click="handleReset">↻ 换一题</button>
       </div>
@@ -57,7 +57,7 @@
       <div class="card">
         <div class="card-title">📋 练习要求</div>
         <p style="font-size:0.9rem;white-space:pre-wrap;line-height:1.7;">
-          {{ practiceStore.currentExercise.requirements || '（无额外要求，请根据数据表和预期结果编写 SQL）' }}
+          {{ currentExercise.requirements || '（无额外要求，请根据数据表和预期结果编写 SQL）' }}
         </p>
       </div>
 
@@ -69,7 +69,7 @@
           <summary style="cursor:pointer;font-size:0.85rem;color:var(--color-text-secondary);font-weight:500;">
             查看建表语句 (DDL)
           </summary>
-          <pre style="background:var(--color-code-bg);color:var(--color-code-text);padding:14px;border-radius:var(--radius);font-family:var(--font-mono);font-size:0.8rem;overflow-x:auto;margin-top:8px;">{{ practiceStore.currentExercise.table_schema }}</pre>
+          <pre style="background:var(--color-code-bg);color:var(--color-code-text);padding:14px;border-radius:var(--radius);font-family:var(--font-mono);font-size:0.8rem;overflow-x:auto;margin-top:8px;">{{ currentExercise.table_schema }}</pre>
         </details>
 
         <!-- 表数据 -->
@@ -88,41 +88,54 @@
       </div>
 
       <!-- 书写要点 -->
-      <div v-if="practiceStore.currentExercise.key_points" class="card">
+      <div v-if="currentExercise.key_points" class="card">
         <div class="card-title">💡 书写要点</div>
-        <pre style="font-size:0.875rem;white-space:pre-wrap;line-height:1.7;">{{ practiceStore.currentExercise.key_points }}</pre>
+        <pre style="font-size:0.875rem;white-space:pre-wrap;line-height:1.7;">{{ currentExercise.key_points }}</pre>
       </div>
 
       <!-- 预期结果描述 -->
-      <div v-if="practiceStore.currentExercise.expected_result_desc" class="card">
+      <div v-if="currentExercise.expected_result_desc" class="card">
         <div class="card-title">🎯 预期结果描述</div>
-        <p style="font-size:0.9rem;line-height:1.7;">{{ practiceStore.currentExercise.expected_result_desc }}</p>
+        <p style="font-size:0.9rem;line-height:1.7;">{{ currentExercise.expected_result_desc }}</p>
+      </div>
+
+      <!-- 参考答案（提示按钮控制显隐，与历史记录界面一致） -->
+      <div v-if="currentExercise.expected_sql" class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="card-title" style="margin-bottom:0;">📝 参考答案</div>
+          <button class="btn btn-sm btn-secondary" @click="showPracticeHint = !showPracticeHint">
+            {{ showPracticeHint ? '隐藏提示' : '💡 提示' }}
+          </button>
+        </div>
+        <template v-if="showPracticeHint">
+          <pre class="schema-block" style="margin-top:12px;">{{ currentExercise.expected_sql }}</pre>
+        </template>
       </div>
 
       <!-- SQL 编辑器 -->
       <div class="card">
         <div class="card-title">✏️ 编写 SQL</div>
-        <SqlEditor v-model="practiceStore.userSql" placeholder="在此输入你的 SQL 查询语句，例如：&#10;SELECT * FROM employees WHERE salary > 5000;" />
+        <SqlEditor v-model="userSql" placeholder="在此输入你的 SQL 查询语句，例如：&#10;SELECT * FROM employees WHERE salary > 5000;" />
         <div class="btn-group" style="margin-top:12px;">
           <button
             class="btn btn-primary"
             @click="handleValidate"
-            :disabled="practiceStore.loading || !practiceStore.userSql.trim()"
+            :disabled="loading || !userSql.trim()"
           >
-            {{ practiceStore.loading ? '⏳ 执行中...' : '▶ 校验执行' }}
+            {{ loading ? '⏳ 执行中...' : '▶ 校验执行' }}
           </button>
           <button
-            v-if="practiceStore.validationResult?.isCorrect"
+            v-if="validationResult?.isCorrect"
             class="btn btn-success"
             @click="handleOptimize"
-            :disabled="practiceStore.optimizing"
+            :disabled="optimizing"
           >
-            {{ practiceStore.optimizing ? '⏳ 获取中...' : '🔧 获取调优建议' }}
+            {{ optimizing ? '⏳ 获取中...' : '🔧 获取调优建议' }}
           </button>
           <button
             class="btn btn-secondary"
-            @click="practiceStore.userSql = ''"
-            :disabled="!practiceStore.userSql"
+            @click="userSql = ''"
+            :disabled="!userSql"
           >
             清空
           </button>
@@ -130,16 +143,16 @@
       </div>
 
       <!-- 校验结果面板 -->
-      <div v-if="practiceStore.validationResult" class="card">
+      <div v-if="validationResult" class="card">
         <div class="card-title">📋 校验结果</div>
-        <ResultPanel :result="practiceStore.validationResult" />
+        <ResultPanel :result="validationResult" />
       </div>
 
       <!-- 调优建议 -->
-      <div v-if="practiceStore.optimizationSuggestions.length > 0" class="card">
+      <div v-if="optimizationSuggestions.length > 0" class="card">
         <div class="card-title">🔧 SQL 调优建议</div>
         <div
-          v-for="(item, idx) in practiceStore.optimizationSuggestions"
+          v-for="(item, idx) in optimizationSuggestions"
           :key="idx"
           class="suggestion-card"
         >
@@ -148,7 +161,7 @@
           <div class="explanation">📖 解释: {{ item.explanation }}</div>
         </div>
       </div>
-    </template>
+    </div>
 
     <!-- 无练习题时的引导状态 -->
     <div v-else class="card" style="text-align:center;">
@@ -175,8 +188,9 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { usePracticeStore } from '../stores/practice'
 import { useConfigStore } from '../stores/config'
 import SqlEditor from '../components/SqlEditor.vue'
@@ -188,7 +202,25 @@ const router = useRouter()
 const practiceStore = usePracticeStore()
 const configStore = useConfigStore()
 
+// 使用 storeToRefs 解构 — Pinia 推荐的响应式模式，确保 v-if 正确触发
+const {
+  currentExercise,
+  tables,
+  tableData,
+  userSql,
+  validationResult,
+  optimizationSuggestions,
+  loading,
+  generating,
+  optimizing,
+  error,
+} = storeToRefs(practiceStore)
+
+const { hasKey } = storeToRefs(configStore)
+
 const showKeyWarning = ref(false)
+const exerciseSection = ref(null)
+const showPracticeHint = ref(false)
 
 const generateForm = reactive({
   difficulty: 'medium',
@@ -196,39 +228,44 @@ const generateForm = reactive({
 })
 
 const difficultyLabel = computed(() => {
-  const d = practiceStore.currentExercise?.difficulty
+  const d = currentExercise.value?.difficulty
   return { easy: '简单', medium: '中等', hard: '困难' }[d] || '中等'
 })
 
 const exerciseBadgeClass = computed(() => {
-  const d = practiceStore.currentExercise?.difficulty
+  const d = currentExercise.value?.difficulty
   return { easy: 'badge-success', medium: 'badge-warning', hard: 'badge-error' }[d] || 'badge-warning'
 })
 
 // 优先使用服务端预解析的表数据；降级到前端手动解析
 const displayTables = computed(() => {
-  if (practiceStore.tables?.length > 0) {
-    return practiceStore.tables
+  if (tables.value?.length > 0) {
+    return tables.value
   }
-  // 降级：前端手动解析 INSERT 语句
-  if (practiceStore.tableData) {
-    return parseTableData(practiceStore.tableData)
+  if (tableData.value) {
+    return parseTableData(tableData.value)
   }
   return []
 })
 
+// 监听 currentExercise 变化 — 新题时重置提示显隐
+watch(currentExercise, (val) => {
+  if (val) showPracticeHint.value = false
+})
+
 onMounted(async () => {
-  await configStore.fetchConfig()
+  await configStore.fetchConfigs()
 })
 
 async function handleGenerate() {
-  // 校验 DeepSeek API Key 是否已配置
-  if (!configStore.hasKey) {
+  if (!hasKey.value) {
     showKeyWarning.value = true
     return
   }
   try {
     await practiceStore.generateExercise(generateForm.difficulty, generateForm.topic)
+    await nextTick()
+    exerciseSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch {
     // error handled in store
   }
@@ -276,7 +313,7 @@ function parseTableData(sqlText) {
   }
 
   // 从 CREATE TABLE 提取列名
-  const columnMap = extractColumns(practiceStore.currentExercise?.table_schema || '')
+  const columnMap = extractColumns(currentExercise.value?.table_schema || '')
 
   return Object.entries(tableMap).map(([name, rawRows]) => {
     const cols = columnMap[name] || []
@@ -402,5 +439,17 @@ function extractColumns(ddl) {
 
 code {
   font-family: var(--font-mono);
+}
+
+.schema-block {
+  background: var(--color-code-bg);
+  color: var(--color-code-text);
+  padding: 12px;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 </style>
